@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>홈 CEO — 콘텐츠 레이아웃 스터디</title>
+    <style>
+        :root {
+            --bg-body: #F4F6F8;
+            --bg-surface: #FFFFFF;
+            --bg-hover: #F9FAFB;
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --text-tertiary: #9CA3AF;
+            --border-light: #E5E7EB;
+            --border-subtle: #F3F4F6;
+            --primary: #FA7705;
+            --primary-bg: #FFF7ED;
+            --primary-hover: #E56B00;
+            --info: #0B57DF;
+            --info-bg: #EFF6FF;
+            --success: #37A74C;
+            --success-bg: #ECFDF5;
+            --warning: #FFAA00;
+            --warning-bg: #FFFBEB;
+            --error: #DA352A;
+            --error-bg: #FEF2F2;
+            --tag-hr: #654FF8;
+            --tag-hr-bg: #F5F3FF;
+            --tag-accounting: #D97706;
+            --tag-accounting-bg: #FEF3C7;
+            --tag-tax: #2995AB;
+            --tag-tax-bg: #F0FDFA;
+            --font: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --aux-width: 400px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font); background: var(--bg-body); color: var(--text-primary); -webkit-font-smoothing: antialiased; font-feature-settings: "lnum", "tnum"; overflow: hidden; height: 100vh; }
+
+        .layout { display: flex; height: 100vh; }
+        .main { flex: 1; padding: 32px 40px; overflow-y: auto; }
+        .aux { width: 0; background: var(--bg-surface); border-left: 1px solid var(--border-light); overflow: hidden; transition: width 280ms cubic-bezier(0.4,0,0.2,1); flex-shrink: 0; }
+        .aux.open { width: var(--aux-width); }
+        .aux-inner { width: var(--aux-width); padding: 24px 20px; }
+        .aux-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .aux-title { font-size: 16px; font-weight: 700; }
+        .aux-close { width: 32px; height: 32px; border: none; background: var(--bg-body); cursor: pointer; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+        .aux-close:hover { background: var(--border-light); }
+        .aux-footer { border-top: 1px solid var(--border-light); padding: 16px 0 0; margin-top: 20px; display: flex; gap: 8px; }
+
+        /* ── 인사말 ── */
+        .greeting { margin-bottom: 32px; }
+        .greeting h1 { font-size: 28px; font-weight: 800; line-height: 38px; margin-bottom: 6px; }
+        .greeting p { font-size: 15px; color: var(--text-secondary); }
+
+        /* ── 상단 요약 ── */
+        .top-summary { display: flex; gap: 16px; margin-bottom: 32px; }
+        .fund-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 24px; flex: 1; }
+        .fund-card-label { font-size: 13px; color: var(--text-tertiary); font-weight: 500; margin-bottom: 4px; }
+        .fund-card-value { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 40px; font-variant-numeric: tabular-nums; }
+        .fund-card-value .unit { font-size: 14px; font-weight: 500; color: var(--text-tertiary); margin-left: 4px; }
+        .fund-card-sub { font-size: 13px; color: var(--text-tertiary); margin-top: 6px; line-height: 20px; }
+        .fund-card-sub a { color: var(--text-tertiary); text-decoration: underline dotted; cursor: pointer; }
+        .badge-good { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-md); background: var(--success-bg); border: 1px solid #D1FAE5; }
+        .badge-good-label { font-size: 15px; font-weight: 700; color: var(--success); }
+        .badge-good-desc { font-size: 12px; color: var(--success); }
+
+        /* ── 그래프 카드 3열 ── */
+        .chart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .chart-card { background: var(--bg-surface); border-radius: var(--radius-md); padding: 20px; border: 1px solid var(--border-light); }
+        .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .chart-label { font-size: 13px; color: var(--text-tertiary); }
+        .chart-value { font-size: 20px; font-weight: 800; }
+        .chart-change { font-size: 12px; font-weight: 600; margin-left: 6px; }
+        .chart-change.up { color: var(--success); }
+        .chart-change.down { color: var(--error); }
+        .chart-period { font-size: 11px; color: var(--text-tertiary); }
+
+        .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 64px; position: relative; }
+        .bar-chart .bar { flex: 1; border-radius: 3px 3px 0 0; transition: opacity 0.15s; cursor: pointer; }
+        .bar-chart .bar:hover { opacity: 0.75; }
+        .bar-chart .target-line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--text-tertiary); pointer-events: none; }
+        .bar-chart .target-label { position: absolute; right: 0; font-size: 10px; color: var(--text-tertiary); transform: translateY(-100%); padding-bottom: 2px; }
+        .bar-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: var(--text-tertiary); }
+        .bar-labels .current { font-weight: 600; color: var(--text-primary); }
+
+        .donut-wrap { display: flex; align-items: center; gap: 14px; }
+        .donut { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .donut-inner { width: 48px; height: 48px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+        .donut-legend { font-size: 12px; flex: 1; }
+        .donut-legend-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; }
+        .donut-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+        .donut-legend-label { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+        .donut-legend-val { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+        .metric-rows { display: flex; flex-direction: column; gap: 10px; }
+        .metric-row { display: flex; align-items: center; justify-content: space-between; }
+        .metric-row .label { font-size: 13px; color: var(--text-tertiary); }
+        .metric-row .val { font-size: 15px; font-weight: 600; }
+        .metric-divider { height: 1px; background: var(--border-subtle); }
+
+        /* ── 액션 + 진행 2열 ── */
+        .two-col { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; margin-bottom: 32px; }
+        .section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .section-count { font-size: 12px; font-weight: 600; background: var(--primary); color: white; padding: 2px 8px; border-radius: 10px; }
+
+        .tag { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+        .tag-accounting { background: var(--tag-accounting-bg); color: var(--tag-accounting); }
+        .tag-hr { background: var(--tag-hr-bg); color: var(--tag-hr); }
+
+        .action-card { background: var(--bg-surface); border-radius: var(--radius-md); padding: 18px 20px; border: 1px solid var(--border-light); margin-bottom: 12px; cursor: pointer; transition: all 150ms; }
+        .action-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(250,119,5,0.08); }
+        .action-card.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+        .action-card-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px; }
+        .action-card-body { font-size: 15px; line-height: 24px; margin-bottom: 12px; }
+        .action-card-body strong { color: var(--text-primary); }
+        .action-card-actions { display: flex; gap: 8px; align-items: center; }
+
+        .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: all 150ms; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: var(--bg-body); color: var(--text-secondary); }
+        .btn-secondary:hover { background: var(--border-light); }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+        .progress-item { background: var(--bg-surface); border-radius: var(--radius-md); padding: 16px 18px; border: 1px solid var(--border-light); margin-bottom: 10px; cursor: pointer; transition: all 150ms; }
+        .progress-item:hover { background: var(--bg-hover); }
+        .progress-label { font-size: 14px; font-weight: 600; }
+        .progress-bar-bg { height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+        .progress-bar-fill { height: 100%; border-radius: 3px; }
+        .progress-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; }
+
+        .recent-box { background: var(--bg-body); border-radius: var(--radius-md); border: 1px solid var(--border-light); padding: 16px 18px; margin-top: 10px; }
+        .recent-box-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; }
+        .recent-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; }
+        .recent-check { color: var(--success); flex-shrink: 0; font-size: 13px; }
+        .recent-text { font-size: 13px; color: var(--text-secondary); line-height: 20px; }
+        .recent-time { font-size: 11px; color: var(--text-tertiary); }
+
+        /* ── 브리핑 ── */
+        .briefing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .briefing-card { background: var(--bg-surface); border-radius: var(--radius-md); padding: 18px; border: 1px solid var(--border-light); cursor: pointer; transition: all 150ms; }
+        .briefing-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); transform: translateY(-1px); }
+        .briefing-icon { width: 28px; height: 28px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+        .briefing-tag { font-size: 11px; color: var(--text-tertiary); margin-bottom: 6px; }
+        .briefing-body { font-size: 14px; line-height: 22px; color: var(--text-secondary); }
+        .briefing-body strong { color: var(--text-primary); }
+        .briefing-link { font-size: 13px; color: var(--primary); font-weight: 600; margin-top: 10px; cursor: pointer; }
+
+        /* ── LNB 핀 모드 ── */
+        .lnb { width: 0; background: var(--bg-surface); border-right: 1px solid var(--border-light); overflow: hidden; transition: width 280ms cubic-bezier(0.4,0,0.2,1); flex-shrink: 0; display: flex; flex-direction: column; }
+        .lnb.expanded { width: 240px; }
+        .lnb-inner { width: 240px; display: flex; flex-direction: column; height: 100%; }
+        .lnb-pin-bar { display: flex; align-items: center; justify-content: flex-end; padding: 6px 8px 2px; flex-shrink: 0; }
+        .lnb-pin-btn { width: 28px; height: 28px; border: none; background: none; cursor: pointer; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); transition: all 150ms; }
+        .lnb-pin-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .lnb-main { flex: 1; overflow-y: auto; padding: 8px 0; }
+        .lnb-bottom-utility { border-top: 1px solid var(--border-light); padding: 8px 0; flex-shrink: 0; }
+        .lnb-section { margin-bottom: 4px; }
+        .lnb-section-title { padding: 10px 16px 4px; font-size: 11px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; }
+        .lnb-section-title:hover { color: var(--text-secondary); }
+        .lnb-group { margin-bottom: 2px; }
+        .lnb-group-title { padding: 6px 16px 4px 28px; font-size: 11px; font-weight: 700; color: var(--text-tertiary); letter-spacing: 0.03em; line-height: 16px; }
+        .lnb-item { padding: 6px 16px 6px 36px; font-size: 13px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 120ms; white-space: nowrap; line-height: 20px; }
+        .lnb-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .lnb-item.active { color: var(--primary); font-weight: 600; background: var(--primary-bg); }
+        .lnb-item.top-level { padding-left: 16px; font-size: 14px; font-weight: 500; }
+        .company-name { font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-bottom: 1px solid var(--border-light); }
+
+        /* ── LNB 오버레이 모드 ── */
+        .lnb-overlay { position: fixed; left: 0; top: 0; height: 100vh; width: 240px; background: var(--bg-surface); border-right: 1px solid var(--border-light); box-shadow: 8px 0 24px rgba(0,0,0,0.12); z-index: 50; transform: translateX(-100%); transition: transform 280ms cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; }
+        .lnb-overlay.open { transform: translateX(0); }
+        .lnb-overlay-inner { width: 240px; display: flex; flex-direction: column; height: 100%; }
+        .lnb-overlay-backdrop { position: fixed; inset: 0; z-index: 49; display: none; }
+        .lnb-overlay-backdrop.open { display: block; }
+
+        /* ── 햄버거 ── */
+        .hamburger-btn { width: 36px; height: 36px; border: none; background: none; cursor: pointer; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); flex-shrink: 0; }
+        .hamburger-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        /* ── 메인 헤더 ── */
+        .main-header { height: 52px; background: var(--bg-surface); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; padding: 0 24px; gap: 12px; flex-shrink: 0; }
+        .page-title { font-size: 18px; font-weight: 700; }
+        .breadcrumb { font-size: 13px; color: var(--text-tertiary); }
+        .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+        /* ── Aux detail ── */
+        .detail-field { margin-bottom: 14px; }
+        .detail-label { font-size: 12px; font-weight: 600; color: var(--text-tertiary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .detail-value { font-size: 15px; color: var(--text-primary); line-height: 23px; }
+        .detail-value.large { font-size: 24px; font-weight: 700; }
+        .detail-divider { height: 1px; background: var(--border-light); margin: 16px 0; }
+    </style>
+</head>
+<body>
+
+<!-- LNB 오버레이 -->
+<div class="lnb-overlay-backdrop" id="lnbBackdrop" onclick="hideLNBOverlay()"></div>
+<aside class="lnb-overlay" id="lnbOverlay">
+    <div class="lnb-overlay-inner" id="lnbOverlayContent"></div>
+</aside>
+
+<div class="layout">
+    <!-- LNB 핀 -->
+    <aside class="lnb" id="lnb">
+        <div class="lnb-inner" id="lnbContent"></div>
+    </aside>
+
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+        <!-- 헤더 -->
+        <div class="main-header">
+            <button class="hamburger-btn" onclick="toggleLNB()" title="메뉴 열기/닫기">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <span class="page-title">홈</span>
+            <span class="breadcrumb">대표 뷰</span>
+            <div class="header-right">
+                <span style="font-size:13px;color:var(--text-tertiary);">뭉앤다순</span>
+                <div style="width:28px;height:28px;background:var(--primary);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">송</div>
+            </div>
+        </div>
+
+        <div class="main" style="padding:32px 40px;">
+
+        <!-- 인사말 -->
+        <div class="greeting">
+            <h1>김혜움 대표님, 안녕하세요.</h1>
+            <p>오늘 확인하실 내용은 3건입니다.</p>
+        </div>
+
+        <!-- 상단 요약: 하나의 카드 -->
+        <div class="fund-card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
+            <div style="display:flex;gap:40px;align-items:flex-start;">
+                <div>
+                    <div class="fund-card-label">가용 자금</div>
+                    <div class="fund-card-value">1억 2,340만<span class="unit">원</span></div>
+                    <div class="fund-card-sub">총 잔액 1억 8,510만 − <a>예정 지출 6,170만</a></div>
+                </div>
+                <div>
+                    <div class="fund-card-label">현금 런웨이</div>
+                    <div class="fund-card-value">14<span class="unit">개월</span></div>
+                    <div class="fund-card-sub">전월 13.2개월 <span style="color:var(--success);font-weight:600;">+0.8</span></div>
+                </div>
+            </div>
+            <div class="badge-good">
+                <span style="font-size:24px;">☀️</span>
+                <div>
+                    <div class="badge-good-label">안정</div>
+                    <div class="badge-good-desc">7일 내 예정 지출 대비 여유</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 액션 + 진행 2열 (먼저) -->
+        <div class="two-col">
+            <div>
+                <div class="section-title">확인이 필요합니다 <span class="section-count">3</span></div>
+
+                <div class="action-card" onclick="selectCard(this, 'expense')">
+                    <div class="action-card-meta"><span class="tag tag-accounting">경리</span><span>2시간 전 · 운영 담당자 이경리</span></div>
+                    <div class="action-card-body"><strong>외주 개발비 세금계산서 1,200만원</strong> — 계정과목 확인<br><span style="font-size:14px;color:var(--text-secondary);">AI가 <strong style="color:var(--text-primary);">외주용역비(92%)</strong>로 분류. 기존 계약서와 금액 차이.</span></div>
+                    <div class="action-card-actions"><button class="btn btn-primary btn-sm">외주용역비 확정</button><button class="btn btn-secondary btn-sm">변경하기</button></div>
+                </div>
+
+                <div class="action-card" onclick="selectCard(this, 'salary')">
+                    <div class="action-card-meta"><span class="tag tag-hr">급여</span><span>오늘 09:00 · Alfred 자동</span></div>
+                    <div class="action-card-body"><strong>3월 급여 집행 준비 완료</strong><br><span style="font-size:14px;color:var(--text-secondary);">12명 총 <strong style="color:var(--primary);">4,320만원</strong>. 승인 시 25일 일괄 지급.</span></div>
+                    <div class="action-card-actions"><button class="btn btn-primary btn-sm">급여 집행 승인</button><span style="font-size:12px;color:var(--warning);font-weight:600;">⚠️ D-3</span></div>
+                </div>
+
+                <div class="action-card" onclick="selectCard(this, 'receivable')">
+                    <div class="action-card-meta"><span class="tag" style="background:var(--warning-bg);color:#92400E;">매출채권</span><span>어제 · 이경리</span></div>
+                    <div class="action-card-body"><strong>(주)넥스트커머스 미수금 2,800만원</strong> — 약정일 경과 미입금</div>
+                    <div class="action-card-actions"><button class="btn btn-primary btn-sm">입금 독촉 요청</button><button class="btn btn-secondary btn-sm">메모</button></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section-title">진행 현황</div>
+
+                <div class="progress-item" onclick="openAux('경리 매칭 진행')">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span class="progress-label">3월 경리 정산</span>
+                        <span style="font-size:14px;font-weight:700;color:var(--primary);">90%</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:90%;background:var(--primary);"></div></div>
+                    <div class="progress-sub">312건 중 281건 완료 · 미매칭 5건</div>
+                </div>
+
+                <div class="progress-item" onclick="openAux('급여 정산 진행')">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span class="progress-label">3월 급여 정산</span>
+                        <span style="font-size:14px;font-weight:700;color:var(--success);">100%</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:100%;background:var(--success);"></div></div>
+                    <div class="progress-sub">12명 전원 정산 완료 · 집행 승인 대기</div>
+                </div>
+
+                <div class="progress-item">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span class="progress-label">AI 자동 처리</span>
+                        <span style="font-size:14px;font-weight:700;color:var(--tag-tax);">87%</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:87%;background:var(--tag-tax);"></div></div>
+                    <div class="progress-sub">312건 중 271건 자동 처리</div>
+                </div>
+
+                <div class="recent-box">
+                    <div class="recent-box-title">최근 처리 완료</div>
+                    <div class="recent-item"><span class="recent-check">✓</span><div><div class="recent-text">법인카드 자동매칭 189건</div><div class="recent-time">오늘 14:30</div></div></div>
+                    <div class="recent-item"><span class="recent-check">✓</span><div><div class="recent-text">전자세금계산서 검증 23건</div><div class="recent-time">오늘 11:00</div></div></div>
+                    <div class="recent-item"><span class="recent-check">✓</span><div><div class="recent-text">사무실 임대료 350만 이체</div><div class="recent-time">어제 17:00</div></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 그래프 3열 (액션 아래) -->
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-label">월 매출</div>
+                        <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;">
+                            <span class="chart-value">8,420만</span>
+                            <span class="chart-change up">+12%</span>
+                        </div>
+                    </div>
+                    <span class="chart-period">최근 6개월</span>
+                </div>
+                <div class="bar-chart">
+                    <div class="target-line" style="bottom:75%"></div>
+                    <span class="target-label" style="bottom:75%">목표</span>
+                    <div class="bar" style="height:55%;background:var(--primary-bg);"></div>
+                    <div class="bar" style="height:62%;background:var(--primary-bg);"></div>
+                    <div class="bar" style="height:48%;background:var(--primary-bg);"></div>
+                    <div class="bar" style="height:70%;background:var(--primary-bg);"></div>
+                    <div class="bar" style="height:78%;background:var(--primary-bg);"></div>
+                    <div class="bar" style="height:88%;background:var(--primary);"></div>
+                </div>
+                <div class="bar-labels">
+                    <span>10월</span><span>11월</span><span>12월</span><span>1월</span><span>2월</span><span class="current">3월</span>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-label">월 지출</div>
+                        <div style="margin-top:4px;"><span class="chart-value">6,180만</span></div>
+                    </div>
+                </div>
+                <div class="donut-wrap">
+                    <div class="donut" style="background:conic-gradient(var(--primary) 0% 42%, var(--tag-tax) 42% 68%, var(--text-tertiary) 68% 85%, var(--border-light) 85% 100%);">
+                        <div class="donut-inner">4항목</div>
+                    </div>
+                    <div class="donut-legend">
+                        <div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--primary)"></span>인건비</span><span class="donut-legend-val">2,590만</span></div>
+                        <div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--tag-tax)"></span>임대·관리비</span><span class="donut-legend-val">1,610만</span></div>
+                        <div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--text-tertiary)"></span>외주·용역비</span><span class="donut-legend-val">1,050만</span></div>
+                        <div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--border-light)"></span>기타</span><span class="donut-legend-val">930만</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-label">순이익</div>
+                        <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;">
+                            <span class="chart-value">2,240만</span>
+                            <span class="chart-change up">+8%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-rows">
+                    <div class="metric-row"><span class="label">순이익률</span><div style="display:flex;align-items:center;gap:6px;"><span class="val">26.6%</span><span style="font-size:12px;font-weight:600;color:var(--success);">+3.2%p</span></div></div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-row"><span class="label">매출 대비 지출</span><span class="val">73.4%</span></div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-row"><span class="label">전월 순이익</span><div style="display:flex;align-items:center;gap:6px;"><span class="val" style="color:var(--text-tertiary);">2,074만</span><span style="font-size:12px;font-weight:600;color:var(--success);">+166만</span></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 브리핑 -->
+        <div>
+            <div class="section-title" style="margin-bottom:12px;">브리핑</div>
+            <div class="briefing-grid">
+                <div class="briefing-card">
+                    <div class="briefing-icon" style="background:var(--warning-bg);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    </div>
+                    <div class="briefing-tag">비용 추이</div>
+                    <div class="briefing-body"><strong>외주용역비 전월 대비 35% 증가</strong>. 분기 예산 78% 소진 중.</div>
+                    <div class="briefing-link">비용 분석 →</div>
+                </div>
+                <div class="briefing-card">
+                    <div class="briefing-icon" style="background:var(--tag-tax-bg);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tag-tax)" stroke-width="2"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+                    </div>
+                    <div class="briefing-tag">매출채권</div>
+                    <div class="briefing-body">미수금 총 <strong>4,200만원</strong>. 평균 회수 32일.</div>
+                    <div class="briefing-link">채권 현황 →</div>
+                </div>
+                <div class="briefing-card">
+                    <div class="briefing-icon" style="background:var(--success-bg);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div class="briefing-tag">세무 일정</div>
+                    <div class="briefing-body"><strong>법인세 중간예납</strong> 3/31 기한. 예상 1,850만.</div>
+                    <div class="briefing-link">세무 일정 →</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    </div><!-- /flex column -->
+
+    <!-- Aux Panel -->
+    <aside class="aux" id="auxPanel">
+        <div class="aux-inner">
+            <div class="aux-header">
+                <span class="aux-title" id="auxTitle">상세</span>
+                <button class="aux-close" onclick="closeAux()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="auxContent"></div>
+            <div class="aux-footer" id="auxFooter"></div>
+        </div>
+    </aside>
+</div>
+
+<script>
+let lnbExpanded = false;
+let lnbOverlay = false;
+let hoverTimer = null;
+
+function toggleLNB() {
+    lnbExpanded = !lnbExpanded;
+    document.getElementById('lnb').classList.toggle('expanded', lnbExpanded);
+    renderLNB();
+}
+
+function pinLNB() {
+    document.getElementById('lnbOverlay').classList.remove('open');
+    document.getElementById('lnbBackdrop').classList.remove('open');
+    lnbOverlay = false;
+    lnbExpanded = true;
+    document.getElementById('lnb').classList.add('expanded');
+    renderLNB();
+}
+
+function unpinLNB() {
+    lnbExpanded = false;
+    document.getElementById('lnb').classList.remove('expanded');
+}
+
+function showLNBOverlay() {
+    if (lnbExpanded) return;
+    lnbOverlay = true;
+    renderLNB();
+    document.getElementById('lnbOverlay').classList.add('open');
+    document.getElementById('lnbBackdrop').classList.add('open');
+}
+
+function hideLNBOverlay() {
+    if (lnbExpanded) return;
+    lnbOverlay = false;
+    document.getElementById('lnbOverlay').classList.remove('open');
+    document.getElementById('lnbBackdrop').classList.remove('open');
+}
+
+function renderLNB() {
+    const isPinned = lnbExpanded;
+    let pinBar = `<div class="lnb-pin-bar"><div></div><button class="lnb-pin-btn" onclick="${isPinned ? 'unpinLNB()' : 'pinLNB()'}" title="${isPinned ? '사이드바 닫기' : '사이드바 고정'}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">${isPinned ? '<path d="M15 18l-6-6 6-6"/>' : '<path d="M9 18l6-6-6-6"/>'}</svg></button></div>`;
+
+    let main = `<div class="company-name">뭉앤다순 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7"/></svg></div>`;
+
+    main += `<div class="lnb-section">
+        <div class="lnb-section-title">경리</div>
+        <div class="lnb-group"><div class="lnb-group-title">매출 관리</div><div class="lnb-item" style="padding-left:40px;">매출 증빙 관리</div><div class="lnb-item" style="padding-left:40px;">세금계산서 발급</div></div>
+        <div class="lnb-group"><div class="lnb-group-title">매입 관리</div><div class="lnb-item" style="padding-left:40px;">매입 증빙 관리</div><div class="lnb-item" style="padding-left:40px;">세금 납부</div></div>
+        <div class="lnb-group"><div class="lnb-group-title">계좌 관리</div><div class="lnb-item" style="padding-left:40px;">계좌 목록</div><div class="lnb-item" style="padding-left:40px;">입출금 내역</div><div class="lnb-item" style="padding-left:40px;">입금 관리</div><div class="lnb-item" style="padding-left:40px;">출금 관리</div></div>
+        <div class="lnb-item" style="padding-left:28px;">거래처 관리</div>
+    </div>`;
+
+    main += `<div class="lnb-section"><div class="lnb-section-title">인사·급여</div><div class="lnb-item" style="padding-left:28px;">급여 정산</div><div class="lnb-item" style="padding-left:28px;">구성원 정보</div></div>`;
+    main += `<div class="lnb-section"><div class="lnb-item top-level">경영 보고서</div></div>`;
+
+    let bottom = `<div class="lnb-item top-level" style="padding:8px 16px;">보관함</div><div class="lnb-item top-level" style="padding:8px 16px;">설정</div>`;
+
+    const html = `${pinBar}<div class="lnb-main">${main}</div><div class="lnb-bottom-utility">${bottom}</div>`;
+    document.getElementById('lnbContent').innerHTML = html;
+    document.getElementById('lnbOverlayContent').innerHTML = html;
+}
+
+// 호버 이벤트
+document.addEventListener('DOMContentLoaded', () => {
+    const hamburgerEl = document.querySelector('.hamburger-btn');
+    const lnbOverlayEl = document.getElementById('lnbOverlay');
+
+    hamburgerEl.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); hoverTimer = setTimeout(() => showLNBOverlay(), 150); });
+    hamburgerEl.addEventListener('mouseleave', (e) => { clearTimeout(hoverTimer); if (lnbOverlayEl.contains(e.relatedTarget)) return; hoverTimer = setTimeout(() => hideLNBOverlay(), 200); });
+    lnbOverlayEl.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); });
+    lnbOverlayEl.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); hoverTimer = setTimeout(() => hideLNBOverlay(), 200); });
+
+    renderLNB();
+});
+
+function selectCard(el, id) {
+    document.querySelectorAll('.action-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    const titles = { expense: '외주 개발비 1,200만', salary: '3월 급여 집행', receivable: '미수금 2,800만' };
+    openAux(titles[id] || '상세');
+    renderDetail(id);
+}
+
+function openAux(title) {
+    document.getElementById('auxPanel').classList.add('open');
+    document.getElementById('auxTitle').textContent = title;
+}
+
+function closeAux() {
+    document.getElementById('auxPanel').classList.remove('open');
+    document.querySelectorAll('.action-card').forEach(c => c.classList.remove('selected'));
+}
+
+function renderDetail(id) {
+    const c = document.getElementById('auxContent');
+    const f = document.getElementById('auxFooter');
+    if (id === 'expense') {
+        c.innerHTML = `<div class="detail-field"><div class="detail-label">거래처</div><div class="detail-value">(주)테크파트너스</div></div><div class="detail-field"><div class="detail-label">금액</div><div class="detail-value large">12,000,000원</div></div><div class="detail-divider"></div><div class="detail-field"><div class="detail-label">AI 추천</div><div class="detail-value"><span class="tag tag-accounting">외주용역비</span> <span style="font-size:12px;color:var(--text-tertiary);">92%</span></div></div><div class="detail-field"><div class="detail-label">코멘트</div><div class="detail-value" style="background:var(--bg-body);padding:10px;border-radius:6px;font-size:14px;">계약서 1,000만 + 추가 개발분 200만. 확인 부탁드립니다.</div></div>`;
+        f.innerHTML = `<button class="btn btn-primary" style="flex:1">확정</button><button class="btn btn-secondary">변경</button>`;
+    } else if (id === 'salary') {
+        c.innerHTML = `<div class="detail-field"><div class="detail-label">총 지급액</div><div class="detail-value large">43,200,000원</div></div><div class="detail-field"><div class="detail-label">대상</div><div class="detail-value">12명 (정규직 10 / 계약직 2)</div></div><div class="detail-divider"></div><div class="detail-field"><div class="detail-label">변동</div><div class="detail-value" style="font-size:14px;">· 신규 입사자 1명 (이OO)<br>· 연장근무 수당 증가</div></div>`;
+        f.innerHTML = `<button class="btn btn-primary" style="flex:1">급여 집행</button><button class="btn btn-secondary">수정 요청</button>`;
+    } else if (id === 'receivable') {
+        c.innerHTML = `<div class="detail-field"><div class="detail-label">거래처</div><div class="detail-value">(주)넥스트커머스</div></div><div class="detail-field"><div class="detail-label">미수금</div><div class="detail-value large" style="color:var(--warning);">28,000,000원</div></div><div class="detail-field"><div class="detail-label">약정일</div><div class="detail-value" style="color:var(--error);font-weight:600;">2026-03-15 (경과)</div></div><div class="detail-divider"></div><div class="detail-field"><div class="detail-label">거래 이력</div><div class="detail-value" style="font-size:14px;">· 2026-01: 2,200만 → 정상 ✓<br>· 2025-12: 1,800만 → 정상 ✓<br>· 2025-11: 2,500만 → 3일 지연</div></div>`;
+        f.innerHTML = `<button class="btn btn-primary" style="flex:1">입금 독촉</button><button class="btn btn-secondary">메모</button>`;
+    }
+}
+</script>
+</body>
+</html>
