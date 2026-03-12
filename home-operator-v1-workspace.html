@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>알프레드 - 실무자 워크스페이스</title>
+    <style>
+        :root {
+            --bg-body: #F4F6F8;
+            --bg-surface: #FFFFFF;
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --text-tertiary: #9CA3AF;
+            --border-light: #E5E7EB;
+            
+            --primary-orange: #FF6005;
+            --primary-orange-bg: #FFF6F0;
+            --status-warning: #D97706;
+            --status-warning-bg: #FEF3C7;
+            
+            --font-family: 'Pretendard', sans-serif;
+            --header-height: 56px;
+            --sidebar-width: 260px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font-family); background-color: var(--bg-body); color: var(--text-primary); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* Global Header (Compact for operators) */
+        .global-header {
+            height: var(--header-height); background-color: #111827; color: white;
+            display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; z-index: 50;
+        }
+        .brand { font-size: 18px; font-weight: 800; color: white; letter-spacing: 0.5px;}
+        .header-utils { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+        .avatar { width: 28px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+        /* App Body */
+        .app-body { display: flex; flex: 1; overflow: hidden; }
+
+        /* LNB Sidebar (Workspace) */
+        .sidebar {
+            width: var(--sidebar-width); background-color: var(--bg-surface); border-right: 1px solid var(--border-light);
+            display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0;
+        }
+        
+        .sidebar-section { padding: 24px 0 8px; }
+        .section-title { padding: 0 24px 8px; font-size: 12px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;}
+        
+        .nav-item {
+            padding: 10px 24px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none;
+            display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;
+        }
+        .nav-item:hover { background-color: var(--bg-body); }
+        .nav-item.active { color: var(--primary-orange); background-color: var(--primary-orange-bg); font-weight: 600; border-right: 3px solid var(--primary-orange); }
+        .badge { background: var(--status-warning); color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; font-weight: 700;}
+
+        /* Main Workspace Area */
+        .workspace { flex: 1; display: flex; flex-direction: column; background: var(--bg-body); overflow: hidden;}
+        
+        /* Workspace Header */
+        .ws-header { padding: 24px 32px 0; flex-shrink: 0; }
+        .ws-title { font-size: 24px; font-weight: 700; margin-bottom: 16px; }
+        
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 1px solid var(--border-light); margin-bottom: 24px; }
+        .tab { padding: 12px 24px; font-size: 14px; font-weight: 600; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+        .tab.active { color: var(--primary-orange); border-bottom-color: var(--primary-orange); }
+
+        /* Workspace Content (List/Grid) */
+        .ws-content { flex: 1; padding: 0 32px 32px; overflow-y: auto; }
+        
+        /* Filter Bar */
+        .filter-bar { display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center;}
+        .search-box { padding: 8px 16px; border: 1px solid var(--border-light); border-radius: 8px; font-size: 13px; width: 240px; }
+        .btn-action { padding: 8px 16px; background: white; border: 1px solid var(--border-light); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+        /* Data Grid (Ticket UI) */
+        .ticket {
+            background: white; border: 1px solid var(--border-light); border-radius: 12px; padding: 20px;
+            margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .ticket-left { display: flex; flex-direction: column; gap: 8px; }
+        .ticket-title { font-size: 15px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;}
+        .ai-label { background: #F3F4F6; color: #374151; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid #E5E7EB;}
+        .ticket-meta { font-size: 13px; color: var(--text-secondary); }
+        
+        .ticket-right { display: flex; gap: 12px; align-items: center; }
+        .escalate-btn { padding: 8px 16px; background: var(--bg-body); border: 1px solid var(--border-light); border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer;}
+        .resolve-btn { padding: 8px 16px; background: var(--primary-orange); color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;}
+
+    </style>
+</head>
+<body>
+    <!-- Global Header (Operator Mode) -->
+    <header class="global-header">
+        <div class="brand">Alfred Workspace</div>
+        <div class="header-utils">
+            <span>(주)혜움랩스</span>
+            <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2); margin: 0 8px;"></div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="avatar">JM</div>
+                <span>최지민 매니저</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-body">
+        <!-- LNB (Sidebar) -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="section-title">내 작업장 (Action Required)</div>
+                <a href="#" class="nav-item active">
+                    경리 이슈 보드 <span class="badge">12</span>
+                </a>
+                <a href="#" class="nav-item">
+                    급여 생성 관제 <span class="badge">3</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="section-title">마스터 데이터 (Master DB)</div>
+                <a href="#" class="nav-item">인사·조직 마스터</a>
+                <a href="#" class="nav-item">거래처 마스터</a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="section-title">기록 및 아카이브</div>
+                <a href="#" class="nav-item">통합 증빙/금융 타임라인</a>
+                <a href="#" class="nav-item">근태 및 휴가 기록</a>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <div class="ws-header">
+                <h1 class="ws-title">경리 이슈 보드</h1>
+                <div class="tabs">
+                    <div class="tab active">검토 대기 (12)</div>
+                    <div class="tab">증빙 요청 중 (4)</div>
+                    <div class="tab">자동 매칭 완료 (245)</div>
+                </div>
+            </div>
+
+            <div class="ws-content">
+                <div class="filter-bar">
+                    <input type="text" class="search-box" placeholder="거래처, 내역 검색...">
+                    <button class="btn-action">일괄 확정하기</button>
+                </div>
+
+                <!-- Ticket 1: Need Manual Check -->
+                <div class="ticket">
+                    <div class="ticket-left">
+                        <div class="ticket-title">
+                            우아한형제들(배달의민족) 
+                            <span class="ai-label">AI 확신도 65% (판단 유보)</span>
+                        </div>
+                        <div class="ticket-meta">3월 10일 · 법인카드(1234) · 155,000원</div>
+                        <div class="ticket-meta" style="color: var(--status-warning);">과거 기록 없음. 계정과목 확정이 필요합니다.</div>
+                    </div>
+                    <div class="ticket-right">
+                        <!-- Escalation to CEO -->
+                        <button class="escalate-btn" title="대표님의 홈 피드로 질문 카드를 전송합니다.">대표에게 묻기 (홈으로 쏘기)</button>
+                        <button class="resolve-btn">직접 수정</button>
+                    </div>
+                </div>
+
+                <!-- Ticket 2: Missing Receipt -->
+                <div class="ticket">
+                    <div class="ticket-left">
+                        <div class="ticket-title">
+                            스타벅스 강남점
+                            <span class="ai-label">AI 예측: 복리후생비</span>
+                        </div>
+                        <div class="ticket-meta">3월 9일 · 직원 계좌 송금 · 45,000원</div>
+                        <div class="ticket-meta" style="color: var(--status-warning);">국세청 및 카드 내역에 매칭되는 영수증이 없습니다.</div>
+                    </div>
+                    <div class="ticket-right">
+                        <!-- Employee direct push -->
+                        <button class="escalate-btn">직원에게 영수증 요청(카톡)</button>
+                        <button class="resolve-btn">증빙 첨부</button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>
