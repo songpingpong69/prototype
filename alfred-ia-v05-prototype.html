@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alfred IA v0.5 — 전체 프로토타입</title>
+    <style>
+        :root {
+            --bg-body: #F4F6F8;
+            --bg-surface: #FFFFFF;
+            --bg-hover: #F9FAFB;
+            --bg-active: #FFF7ED;
+            --text-primary: #111827;
+            --text-secondary: #4B5563;
+            --text-tertiary: #9CA3AF;
+            --border-light: #E5E7EB;
+            --border-subtle: #F3F4F6;
+            --primary: #FA7705;
+            --primary-bg: #FFF7ED;
+            --primary-hover: #E56B00;
+            --info: #0B57DF;
+            --info-bg: #EFF6FF;
+            --success: #37A74C;
+            --success-bg: #ECFDF5;
+            --warning: #FFAA00;
+            --warning-bg: #FFFBEB;
+            --error: #DA352A;
+            --error-bg: #FEF2F2;
+            --tag-hr: #654FF8;
+            --tag-hr-bg: #F5F3FF;
+            --tag-accounting: #D97706;
+            --tag-accounting-bg: #FEF3C7;
+            --tag-tax: #2995AB;
+            --tag-tax-bg: #F0FDFA;
+            --font: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --lnb-w: 240px;
+            --lnb-collapsed: 56px;
+            --header-h: 48px;
+            --aux-width: 400px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font); background: var(--bg-body); color: var(--text-primary); -webkit-font-smoothing: antialiased; font-feature-settings: "lnum","tnum"; overflow: hidden; height: 100vh; }
+
+        /* ── Layout ── */
+        .app { display: flex; height: 100vh; }
+        .lnb { width: 0; flex-shrink: 0; background: var(--bg-surface); border-right: 1px solid var(--border-light); overflow: hidden; transition: width 250ms cubic-bezier(0.4,0,0.2,1); z-index: 20; }
+        .lnb.pinned { width: var(--lnb-w); }
+        .lnb-inner { width: var(--lnb-w); height: 100vh; display: flex; flex-direction: column; overflow-y: auto; }
+
+        /* LNB Overlay */
+        .lnb-overlay { position: fixed; left: 0; top: 0; height: 100vh; width: var(--lnb-w); background: var(--bg-surface); border-right: 1px solid var(--border-light); box-shadow: 4px 0 24px rgba(0,0,0,0.08); z-index: 50; transform: translateX(-100%); transition: transform 280ms cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; overflow-y: auto; }
+        .lnb-overlay.open { transform: translateX(0); }
+        .lnb-overlay-backdrop { position: fixed; inset: 0; z-index: 49; display: none; }
+        .lnb-overlay-backdrop.show { display: block; }
+
+        /* LNB Content */
+        .lnb-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); }
+        .lnb-logo { font-size: 16px; font-weight: 800; color: var(--primary); cursor: pointer; }
+        .lnb-pin-btn { width: 28px; height: 28px; border: none; background: transparent; cursor: pointer; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); transition: all 150ms; }
+        .lnb-pin-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .lnb-menu { flex: 1; padding: 8px 0; overflow-y: auto; }
+        .lnb-section { padding: 0 8px; margin-bottom: 4px; }
+        .lnb-section-title { padding: 8px 12px 4px; font-size: 11px; font-weight: 700; color: var(--text-tertiary); letter-spacing: 0.03em; text-transform: uppercase; }
+        .lnb-item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 14px; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-sm); transition: all 120ms; white-space: nowrap; }
+        .lnb-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .lnb-item.active { background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+        .lnb-item.section-head { font-weight: 700; color: var(--text-primary); font-size: 13px; padding: 10px 12px 6px; cursor: default; }
+        .lnb-item.section-head:hover { background: transparent; }
+        .lnb-item.sub { padding-left: 32px; font-size: 13px; }
+        .lnb-divider { height: 1px; background: var(--border-light); margin: 8px 16px; }
+        .lnb-group-label { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-sm); margin: 0 8px; }
+        .lnb-group-label:hover { background: var(--bg-hover); }
+        .lnb-group-label .chevron { font-size: 10px; transition: transform 200ms; }
+        .lnb-group-label.collapsed .chevron { transform: rotate(-90deg); }
+        .lnb-group-items { overflow: hidden; transition: max-height 200ms; }
+        .lnb-group-items.collapsed { max-height: 0 !important; }
+
+        /* ── Main Area ── */
+        .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .main-header { height: var(--header-h); background: var(--bg-surface); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0; }
+        .hamburger { width: 32px; height: 32px; border: none; background: transparent; cursor: pointer; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); flex-shrink: 0; }
+        .hamburger:hover { background: var(--bg-hover); }
+        .header-title { font-size: 15px; font-weight: 700; flex: 1; }
+        .role-toggle { display: flex; align-items: center; gap: 0; background: var(--bg-body); border-radius: 8px; padding: 3px; }
+        .role-btn { padding: 5px 14px; font-size: 12px; font-weight: 600; border: none; background: transparent; cursor: pointer; border-radius: 6px; color: var(--text-tertiary); transition: all 150ms; }
+        .role-btn.active { background: var(--bg-surface); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .header-company { font-size: 13px; color: var(--text-tertiary); font-weight: 500; }
+        .header-avatar { width: 28px; height: 28px; background: var(--text-primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+
+        .main-body { display: flex; flex: 1; overflow: hidden; }
+        .main-content { flex: 1; overflow-y: auto; padding: 32px 40px; }
+        .aux { width: 0; background: var(--bg-surface); border-left: 1px solid var(--border-light); overflow: hidden; transition: width 280ms cubic-bezier(0.4,0,0.2,1); flex-shrink: 0; }
+        .aux.open { width: var(--aux-width); }
+        .aux-inner { width: var(--aux-width); padding: 24px 20px; }
+        .aux-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .aux-title { font-size: 16px; font-weight: 700; }
+        .aux-close { width: 32px; height: 32px; border: none; background: var(--bg-body); cursor: pointer; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+        .aux-close:hover { background: var(--border-light); }
+        .aux-footer { border-top: 1px solid var(--border-light); padding: 16px 0 0; margin-top: 20px; display: flex; gap: 8px; }
+
+        /* ── Tab pages (show/hide) ── */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* ── Common Components ── */
+        .greeting { margin-bottom: 32px; }
+        .greeting h1 { font-size: 26px; font-weight: 800; line-height: 36px; margin-bottom: 6px; }
+        .greeting p { font-size: 15px; color: var(--text-secondary); }
+
+        .fund-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 24px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+        .fund-card-label { font-size: 13px; color: var(--text-tertiary); font-weight: 500; margin-bottom: 4px; }
+        .fund-card-value { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; line-height: 38px; font-variant-numeric: tabular-nums; }
+        .fund-card-value .unit { font-size: 14px; font-weight: 500; color: var(--text-tertiary); margin-left: 4px; }
+        .fund-card-sub { font-size: 13px; color: var(--text-tertiary); margin-top: 4px; }
+        .badge-good { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-md); background: var(--success-bg); border: 1px solid #D1FAE5; }
+        .badge-good-label { font-size: 15px; font-weight: 700; color: var(--success); }
+        .badge-good-desc { font-size: 12px; color: var(--success); }
+
+        .section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .section-count { font-size: 12px; font-weight: 600; background: var(--primary); color: white; padding: 2px 8px; border-radius: 10px; }
+        .tag { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+        .tag-accounting { background: var(--tag-accounting-bg); color: var(--tag-accounting); }
+        .tag-hr { background: var(--tag-hr-bg); color: var(--tag-hr); }
+        .tag-tax { background: var(--tag-tax-bg); color: var(--tag-tax); }
+
+        .action-card { background: var(--bg-surface); border-radius: var(--radius-md); padding: 18px 20px; border: 1px solid var(--border-light); margin-bottom: 12px; cursor: pointer; transition: all 150ms; }
+        .action-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(250,119,5,0.08); }
+        .action-card.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+        .action-card-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px; }
+        .action-card-body { font-size: 15px; line-height: 24px; margin-bottom: 12px; }
+        .action-card-body strong { color: var(--text-primary); }
+        .action-card-actions { display: flex; gap: 8px; align-items: center; }
+
+        .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: all 150ms; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: var(--bg-body); color: var(--text-secondary); }
+        .btn-secondary:hover { background: var(--border-light); }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+
+        .two-col { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; margin-bottom: 32px; }
+
+        .progress-item { background: var(--bg-surface); border-radius: var(--radius-md); padding: 16px 18px; border: 1px solid var(--border-light); margin-bottom: 10px; }
+        .progress-label { font-size: 14px; font-weight: 600; }
+        .progress-bar-bg { height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+        .progress-bar-fill { height: 100%; border-radius: 3px; }
+        .progress-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; }
+
+        /* Charts */
+        .chart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .chart-card { background: var(--bg-surface); border-radius: var(--radius-md); padding: 20px; border: 1px solid var(--border-light); }
+        .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .chart-label { font-size: 13px; color: var(--text-tertiary); }
+        .chart-value { font-size: 20px; font-weight: 800; }
+        .chart-change { font-size: 12px; font-weight: 600; margin-left: 6px; }
+        .chart-change.up { color: var(--success); }
+        .chart-period { font-size: 11px; color: var(--text-tertiary); }
+        .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 64px; position: relative; }
+        .bar-chart .bar { flex: 1; border-radius: 3px 3px 0 0; cursor: pointer; }
+        .bar-chart .target-line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--text-tertiary); pointer-events: none; }
+        .bar-chart .target-label { position: absolute; right: 0; font-size: 10px; color: var(--text-tertiary); transform: translateY(-100%); padding-bottom: 2px; }
+        .bar-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: var(--text-tertiary); }
+        .bar-labels .current { font-weight: 600; color: var(--text-primary); }
+        .donut-wrap { display: flex; align-items: center; gap: 14px; }
+        .donut { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .donut-inner { width: 48px; height: 48px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+        .donut-legend { font-size: 12px; flex: 1; }
+        .donut-legend-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; }
+        .donut-legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+        .donut-legend-label { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+        .donut-legend-val { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+        .metric-rows { display: flex; flex-direction: column; gap: 10px; }
+        .metric-row { display: flex; align-items: center; justify-content: space-between; }
+        .metric-row .label { font-size: 13px; color: var(--text-tertiary); }
+        .metric-row .val { font-size: 15px; font-weight: 600; }
+        .metric-divider { height: 1px; background: var(--border-subtle); }
+
+        /* Briefing */
+        .briefing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+        .briefing-card { background: var(--bg-surface); border-radius: var(--radius-md); padding: 18px; border: 1px solid var(--border-light); cursor: pointer; transition: all 150ms; }
+        .briefing-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); transform: translateY(-1px); }
+        .briefing-tag { font-size: 11px; color: var(--text-tertiary); margin-bottom: 6px; }
+        .briefing-body { font-size: 14px; line-height: 22px; color: var(--text-secondary); }
+        .briefing-body strong { color: var(--text-primary); }
+        .briefing-link { font-size: 13px; color: var(--primary); font-weight: 600; margin-top: 10px; cursor: pointer; }
+
+        /* Section Tabs (경영 보고서, 보관함) */
+        .section-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-light); margin-bottom: 24px; }
+        .section-tab { padding: 10px 20px; font-size: 14px; font-weight: 600; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 150ms; }
+        .section-tab:hover { color: var(--text-primary); }
+        .section-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* Table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table th { text-align: left; padding: 10px 12px; font-weight: 600; color: var(--text-tertiary); font-size: 12px; border-bottom: 1px solid var(--border-light); background: var(--bg-body); }
+        .data-table td { padding: 12px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
+        .data-table tr:hover td { background: var(--bg-hover); }
+        .data-table .amount { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+        .data-table .status { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+        .status-done { background: var(--success-bg); color: var(--success); }
+        .status-pending { background: var(--warning-bg); color: #92400E; }
+        .status-error { background: var(--error-bg); color: var(--error); }
+
+        /* Document cards (보관함) */
+        .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+        .doc-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 16px; cursor: pointer; transition: all 150ms; }
+        .doc-card:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(250,119,5,0.08); }
+        .doc-card-icon { font-size: 20px; margin-bottom: 8px; }
+        .doc-card-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .doc-card-desc { font-size: 12px; color: var(--text-tertiary); line-height: 18px; }
+        .doc-card-actions { display: flex; gap: 6px; margin-top: 10px; }
+        .doc-action { font-size: 12px; color: var(--primary); font-weight: 600; cursor: pointer; }
+
+        /* Operator work queue */
+        .work-queue-item { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 150ms; }
+        .work-queue-item:hover { border-color: var(--primary); }
+        .work-queue-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .work-queue-body { flex: 1; }
+        .work-queue-title { font-size: 14px; font-weight: 600; }
+        .work-queue-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+        .work-queue-badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+
+        /* Settings group cards */
+        .settings-group-card { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 20px; }
+        .settings-group-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); }
+        .settings-group-item { padding: 10px 0; cursor: pointer; border-radius: var(--radius-sm); transition: all 150ms; }
+        .settings-group-item:hover { background: var(--bg-hover); margin: 0 -8px; padding: 10px 8px; }
+        .settings-item-label { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+        .settings-item-desc { font-size: 13px; color: var(--text-tertiary); }
+
+        /* Detail */
+        .detail-field { margin-bottom: 14px; }
+        .detail-label { font-size: 12px; font-weight: 600; color: var(--text-tertiary); margin-bottom: 4px; letter-spacing: 0.03em; }
+        .detail-value { font-size: 15px; color: var(--text-primary); line-height: 23px; }
+        .detail-value.large { font-size: 24px; font-weight: 700; }
+        .detail-divider { height: 1px; background: var(--border-light); margin: 16px 0; }
+
+        /* Empty state */
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-tertiary); }
+        .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.3; }
+        .empty-state-text { font-size: 15px; }
+
+        /* Report summary card */
+        .report-summary { background: linear-gradient(135deg, #1F2937 0%, #374151 100%); border-radius: var(--radius-lg); padding: 28px; color: white; margin-bottom: 24px; }
+        .report-summary-label { font-size: 12px; opacity: 0.6; margin-bottom: 8px; }
+        .report-summary-text { font-size: 16px; line-height: 26px; font-weight: 500; }
+        .report-summary-text strong { color: var(--primary); font-weight: 700; }
+        .report-kpi { display: flex; gap: 32px; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.15); }
+        .report-kpi-item .kpi-label { font-size: 12px; opacity: 0.6; }
+        .report-kpi-item .kpi-value { font-size: 22px; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
+        .report-kpi-item .kpi-change { font-size: 12px; font-weight: 600; }
+        .kpi-up { color: #6EE7B7; }
+        .kpi-down { color: #FCA5A5; }
+
+        /* Link bar */
+        .link-bar { background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
+        .link-bar-text { font-size: 14px; color: var(--text-secondary); }
+        .link-bar-link { font-size: 14px; font-weight: 600; color: var(--primary); cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <!-- LNB (Pinned) -->
+    <aside class="lnb" id="lnb">
+        <div class="lnb-inner" id="lnbContent"></div>
+    </aside>
+
+    <!-- LNB Overlay (Hover) -->
+    <aside class="lnb-overlay" id="lnbOverlay">
+        <div id="lnbOverlayContent"></div>
+    </aside>
+    <div class="lnb-overlay-backdrop" id="lnbBackdrop"></div>
+
+    <!-- Main Area -->
+    <div class="main-area">
+        <header class="main-header">
+            <button class="hamburger" id="hamburgerBtn">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+            </button>
+            <span class="header-title" id="headerTitle">홈</span>
+            <div class="role-toggle">
+                <button class="role-btn active" data-role="ceo" onclick="switchRole('ceo')">대표</button>
+                <button class="role-btn" data-role="operator" onclick="switchRole('operator')">운영자</button>
+            </div>
+            <div class="header-right">
+                <span class="header-company">뭉앤다순</span>
+                <div class="header-avatar">KH</div>
+            </div>
+        </header>
+
+        <div class="main-body">
+            <div class="main-content" id="mainContent">
+
+                <!-- ════════ 홈 (대표) ════════ -->
+                <div class="page active" id="page-home-ceo">
+                    <div class="greeting">
+                        <h1>김혜움 대표님, 안녕하세요.</h1>
+                        <p>오늘 확인하실 내용은 3건입니다.</p>
+                    </div>
+
+                    <div class="fund-card">
+                        <div style="display:flex;gap:40px;align-items:flex-start;">
+                            <div>
+                                <div class="fund-card-label">가용 자금</div>
+                                <div class="fund-card-value">1억 2,340만<span class="unit">원</span></div>
+                                <div class="fund-card-sub">총 잔액 1억 8,510만 − 예정 지출 6,170만</div>
+                            </div>
+                            <div>
+                                <div class="fund-card-label">현금 런웨이</div>
+                                <div class="fund-card-value">14<span class="unit">개월</span></div>
+                                <div class="fund-card-sub">전월 13.2개월 <span style="color:var(--success);font-weight:600;">+0.8</span></div>
+                            </div>
+                        </div>
+                        <div class="badge-good">
+                            <span style="font-size:24px;">☀️</span>
+                            <div>
+                                <div class="badge-good-label">안정</div>
+                                <div class="badge-good-desc">7일 내 예정 지출 대비 여유</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="two-col">
+                        <div>
+                            <div class="section-title">확인이 필요합니다 <span class="section-count">3</span></div>
+                            <div class="action-card" onclick="openAuxDetail('expense')">
+                                <div class="action-card-meta"><span class="tag tag-accounting">경리</span><span>2시간 전 · 운영 담당자 이경리</span></div>
+                                <div class="action-card-body"><strong>외주 개발비 세금계산서 1,200만원</strong> — 계정과목 확인<br><span style="font-size:14px;color:var(--text-secondary);">AI가 <strong style="color:var(--text-primary);">외주용역비(92%)</strong>로 분류.</span></div>
+                                <div class="action-card-actions"><button class="btn btn-primary btn-sm">외주용역비 확정</button><button class="btn btn-secondary btn-sm">변경하기</button></div>
+                            </div>
+                            <div class="action-card" onclick="openAuxDetail('salary')">
+                                <div class="action-card-meta"><span class="tag tag-hr">급여</span><span>오늘 09:00 · Alfred 자동</span></div>
+                                <div class="action-card-body"><strong>3월 급여 집행 준비 완료</strong><br><span style="font-size:14px;color:var(--text-secondary);">12명 총 <strong style="color:var(--primary);">4,320만원</strong>. 승인 시 25일 일괄 지급.</span></div>
+                                <div class="action-card-actions"><button class="btn btn-primary btn-sm">급여 집행 승인</button><span style="font-size:12px;color:var(--warning);font-weight:600;">⚠️ D-3</span></div>
+                            </div>
+                            <div class="action-card" onclick="openAuxDetail('receivable')">
+                                <div class="action-card-meta"><span class="tag" style="background:var(--warning-bg);color:#92400E;">매출채권</span><span>어제 · 이경리</span></div>
+                                <div class="action-card-body"><strong>(주)넥스트커머스 미수금 2,800만원</strong> — 약정일 경과 미입금</div>
+                                <div class="action-card-actions"><button class="btn btn-primary btn-sm">입금 독촉 요청</button><button class="btn btn-secondary btn-sm">메모</button></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="section-title">진행 현황</div>
+                            <div class="progress-item"><div style="display:flex;justify-content:space-between;align-items:center;"><span class="progress-label">3월 경리 정산</span><span style="font-size:14px;font-weight:700;color:var(--primary);">90%</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:90%;background:var(--primary);"></div></div><div class="progress-sub">312건 중 281건 완료 · 미매칭 5건</div></div>
+                            <div class="progress-item"><div style="display:flex;justify-content:space-between;align-items:center;"><span class="progress-label">3월 급여 정산</span><span style="font-size:14px;font-weight:700;color:var(--success);">100%</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:100%;background:var(--success);"></div></div><div class="progress-sub">12명 전원 정산 완료 · 집행 승인 대기</div></div>
+                            <div class="progress-item"><div style="display:flex;justify-content:space-between;align-items:center;"><span class="progress-label">AI 자동 처리</span><span style="font-size:14px;font-weight:700;color:var(--tag-tax);">87%</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:87%;background:var(--tag-tax);"></div></div><div class="progress-sub">312건 중 271건 자동 처리</div></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-grid">
+                        <div class="chart-card">
+                            <div class="chart-header"><div><div class="chart-label">월 매출</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;"><span class="chart-value">8,420만</span><span class="chart-change up">+12%</span></div></div><span class="chart-period">최근 6개월</span></div>
+                            <div class="bar-chart"><div class="target-line" style="bottom:75%"></div><span class="target-label" style="bottom:75%">목표</span><div class="bar" style="height:55%;background:var(--primary-bg);"></div><div class="bar" style="height:62%;background:var(--primary-bg);"></div><div class="bar" style="height:48%;background:var(--primary-bg);"></div><div class="bar" style="height:70%;background:var(--primary-bg);"></div><div class="bar" style="height:78%;background:var(--primary-bg);"></div><div class="bar" style="height:88%;background:var(--primary);"></div></div>
+                            <div class="bar-labels"><span>10월</span><span>11월</span><span>12월</span><span>1월</span><span>2월</span><span class="current">3월</span></div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-header"><div><div class="chart-label">월 지출</div><div style="margin-top:4px;"><span class="chart-value">6,180만</span></div></div></div>
+                            <div class="donut-wrap"><div class="donut" style="background:conic-gradient(var(--primary) 0% 42%, var(--tag-tax) 42% 68%, var(--text-tertiary) 68% 85%, var(--border-light) 85% 100%);"><div class="donut-inner">4항목</div></div><div class="donut-legend"><div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--primary)"></span>인건비</span><span class="donut-legend-val">2,590만</span></div><div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--tag-tax)"></span>임대·관리비</span><span class="donut-legend-val">1,610만</span></div><div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--text-tertiary)"></span>외주·용역비</span><span class="donut-legend-val">1,050만</span></div><div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--border-light)"></span>기타</span><span class="donut-legend-val">930만</span></div></div></div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-header"><div><div class="chart-label">순이익</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;"><span class="chart-value">2,240만</span><span class="chart-change up">+8%</span></div></div></div>
+                            <div class="metric-rows"><div class="metric-row"><span class="label">순이익률</span><div style="display:flex;align-items:center;gap:6px;"><span class="val">26.6%</span><span style="font-size:12px;font-weight:600;color:var(--success);">+3.2%p</span></div></div><div class="metric-divider"></div><div class="metric-row"><span class="label">매출 대비 지출</span><span class="val">73.4%</span></div><div class="metric-divider"></div><div class="metric-row"><span class="label">전월 순이익</span><div style="display:flex;align-items:center;gap:6px;"><span class="val" style="color:var(--text-tertiary);">2,074만</span><span style="font-size:12px;font-weight:600;color:var(--success);">+166만</span></div></div></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="section-title">브리핑</div>
+                        <div class="briefing-grid">
+                            <div class="briefing-card"><div class="briefing-tag">비용 추이</div><div class="briefing-body"><strong>외주용역비 전월 대비 35% 증가</strong>. 분기 예산 78% 소진 중.</div><div class="briefing-link" onclick="navigateTo('report')">비용 분석 →</div></div>
+                            <div class="briefing-card"><div class="briefing-tag">매출채권</div><div class="briefing-body">미수금 총 <strong>4,200만원</strong>. 평균 회수 32일.</div><div class="briefing-link" onclick="navigateTo('report')">채권 현황 →</div></div>
+                            <div class="briefing-card"><div class="briefing-tag">세무 일정</div><div class="briefing-body"><strong>법인세 중간예납</strong> 3/31 기한. 예상 1,850만.</div><div class="briefing-link" onclick="navigateTo('vault')">세무 일정 →</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ════════ 홈 (운영자) ════════ -->
+                <div class="page" id="page-home-operator">
+                    <div class="greeting">
+                        <h1>이경리님, 안녕하세요.</h1>
+                        <p>오늘 처리할 업무 7건, 에스컬레이션 대기 2건</p>
+                    </div>
+
+                    <div class="two-col">
+                        <div>
+                            <div class="section-title">오늘 작업 큐 <span class="section-count">7</span></div>
+                            <div style="display:flex;gap:6px;margin-bottom:12px;">
+                                <button class="btn btn-sm" style="background:var(--text-primary);color:white;">전체</button>
+                                <button class="btn btn-secondary btn-sm">경리</button>
+                                <button class="btn btn-secondary btn-sm">인사·급여</button>
+                            </div>
+                            <div class="work-queue-item">
+                                <div class="work-queue-dot" style="background:var(--error);"></div>
+                                <div class="work-queue-body">
+                                    <div class="work-queue-title">미매칭 증빙 5건 처리</div>
+                                    <div class="work-queue-sub">법인카드 · 자동매칭 실패</div>
+                                </div>
+                                <span class="work-queue-badge" style="background:var(--error-bg);color:var(--error);">긴급</span>
+                            </div>
+                            <div class="work-queue-item">
+                                <div class="work-queue-dot" style="background:var(--warning);"></div>
+                                <div class="work-queue-body">
+                                    <div class="work-queue-title">세금계산서 발급 요청 3건</div>
+                                    <div class="work-queue-sub">매출 · (주)플러스아이티 외 2건</div>
+                                </div>
+                                <span class="work-queue-badge" style="background:var(--warning-bg);color:#92400E;">오늘</span>
+                            </div>
+                            <div class="work-queue-item">
+                                <div class="work-queue-dot" style="background:var(--info);"></div>
+                                <div class="work-queue-body">
+                                    <div class="work-queue-title">입금 확인 2건</div>
+                                    <div class="work-queue-sub">계좌 · 신한 기업자유예금</div>
+                                </div>
+                                <span class="work-queue-badge" style="background:var(--info-bg);color:var(--info);">확인</span>
+                            </div>
+                            <div class="work-queue-item">
+                                <div class="work-queue-dot" style="background:var(--text-tertiary);"></div>
+                                <div class="work-queue-body">
+                                    <div class="work-queue-title">거래처 정보 업데이트 1건</div>
+                                    <div class="work-queue-sub">거래처 · (주)넥스트커머스 사업자등록번호 변경</div>
+                                </div>
+                                <span class="work-queue-badge" style="background:var(--bg-body);color:var(--text-tertiary);">일반</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="section-title">에스컬레이션 <span class="section-count" style="background:var(--error);">2</span></div>
+                            <div class="action-card">
+                                <div class="action-card-meta"><span class="tag" style="background:var(--error-bg);color:var(--error);">대기중</span><span>외주 개발비 계정과목</span></div>
+                                <div class="action-card-body" style="font-size:14px;">대표 확인 대기 · 2시간 전 에스컬레이션</div>
+                            </div>
+                            <div class="action-card">
+                                <div class="action-card-meta"><span class="tag" style="background:var(--success-bg);color:var(--success);">답변완료</span><span>미수금 독촉</span></div>
+                                <div class="action-card-body" style="font-size:14px;">대표 승인 완료 · 독촉 메일 발송 예정</div>
+                            </div>
+
+                            <div style="margin-top:24px;">
+                                <div class="section-title">AI 자동 처리 현황</div>
+                                <div class="progress-item"><div style="display:flex;justify-content:space-between;align-items:center;"><span class="progress-label">3월 자동매칭</span><span style="font-size:14px;font-weight:700;color:var(--tag-tax);">87%</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:87%;background:var(--tag-tax);"></div></div><div class="progress-sub">312건 중 271건 자동 · 수동 36건 · 미처리 5건</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ════════ 경리 (대표) ════════ -->
+                <div class="page" id="page-accounting-ceo">
+                    <div class="greeting">
+                        <h1>경리 현황</h1>
+                        <p>3월 정산 진행 중 · 확인 필요 2건</p>
+                    </div>
+
+                    <div class="progress-item" style="margin-bottom:24px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span class="progress-label">3월 경리 정산</span>
+                            <span style="font-size:14px;font-weight:700;color:var(--primary);">90%</span>
+                        </div>
+                        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:90%;background:var(--primary);"></div></div>
+                        <div class="progress-sub">312건 중 281건 완료 · 미매칭 5건 · AI 자동처리 87%</div>
+                    </div>
+
+                    <div class="section-title">확인이 필요합니다 <span class="section-count">2</span></div>
+                    <div class="action-card" onclick="openAuxDetail('expense')">
+                        <div class="action-card-meta"><span class="tag tag-accounting">경리</span><span>2시간 전 · 이경리</span></div>
+                        <div class="action-card-body"><strong>외주 개발비 세금계산서 1,200만원</strong> — 계정과목 확인</div>
+                        <div class="action-card-actions"><button class="btn btn-primary btn-sm">외주용역비 확정</button><button class="btn btn-secondary btn-sm">변경하기</button></div>
+                    </div>
+                    <div class="action-card" onclick="openAuxDetail('receivable')">
+                        <div class="action-card-meta"><span class="tag" style="background:var(--warning-bg);color:#92400E;">매출채권</span><span>어제 · 이경리</span></div>
+                        <div class="action-card-body"><strong>(주)넥스트커머스 미수금 2,800만원</strong> — 약정일 경과 미입금</div>
+                        <div class="action-card-actions"><button class="btn btn-primary btn-sm">입금 독촉 요청</button></div>
+                    </div>
+                </div>
+
+                <!-- ════════ 경리 (운영자) ════════ -->
+                <div class="page" id="page-accounting-operator">
+                    <div class="greeting">
+                        <h1>매출 증빙 관리</h1>
+                        <p>2026년 3월 · 총 89건</p>
+                    </div>
+
+                    <div style="display:flex;gap:8px;margin-bottom:16px;">
+                        <button class="btn btn-sm" style="background:var(--text-primary);color:white;">전체</button>
+                        <button class="btn btn-secondary btn-sm">미처리</button>
+                        <button class="btn btn-secondary btn-sm">처리완료</button>
+                    </div>
+
+                    <div style="background:var(--bg-surface);border:1px solid var(--border-light);border-radius:var(--radius-md);overflow:hidden;">
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>날짜</th><th>거래처</th><th>유형</th><th style="text-align:right;">금액</th><th>상태</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>03-11</td><td>(주)테크파트너스</td><td>세금계산서</td><td class="amount">12,000,000</td><td><span class="status status-pending">확인 대기</span></td></tr>
+                                <tr><td>03-10</td><td>(주)플러스아이티</td><td>세금계산서</td><td class="amount">3,500,000</td><td><span class="status status-done">처리완료</span></td></tr>
+                                <tr><td>03-10</td><td>스타트업허브</td><td>카드매출</td><td class="amount">890,000</td><td><span class="status status-done">자동처리</span></td></tr>
+                                <tr><td>03-09</td><td>(주)넥스트커머스</td><td>세금계산서</td><td class="amount">28,000,000</td><td><span class="status status-error">미입금</span></td></tr>
+                                <tr><td>03-08</td><td>디자인웍스</td><td>세금계산서</td><td class="amount">5,200,000</td><td><span class="status status-done">처리완료</span></td></tr>
+                                <tr><td>03-07</td><td>카페24</td><td>카드매출</td><td class="amount">1,200,000</td><td><span class="status status-done">자동처리</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ════════ 인사·급여 (대표) ════════ -->
+                <div class="page" id="page-hr-ceo">
+                    <div class="greeting">
+                        <h1>인사·급여 현황</h1>
+                        <p>3월 급여 정산 완료 · 집행 승인 대기</p>
+                    </div>
+
+                    <div class="fund-card" style="margin-bottom:24px;">
+                        <div>
+                            <div class="fund-card-label">3월 급여 총액</div>
+                            <div class="fund-card-value">4,320만<span class="unit">원</span></div>
+                            <div class="fund-card-sub">정규직 10명 + 계약직 2명 · 전월 대비 <span style="color:var(--error);font-weight:600;">+120만</span></div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:4px;">지급 예정일</div>
+                            <div style="font-size:18px;font-weight:700;">3월 25일</div>
+                            <div style="font-size:13px;color:var(--warning);font-weight:600;margin-top:2px;">D-3</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">확인이 필요합니다 <span class="section-count">1</span></div>
+                    <div class="action-card" onclick="openAuxDetail('salary')">
+                        <div class="action-card-meta"><span class="tag tag-hr">급여</span><span>오늘 09:00 · Alfred 자동</span></div>
+                        <div class="action-card-body"><strong>3월 급여 집행 준비 완료</strong><br><span style="font-size:14px;color:var(--text-secondary);">12명 총 4,320만원. 승인 시 25일 일괄 지급.</span></div>
+                        <div class="action-card-actions"><button class="btn btn-primary btn-sm">급여 집행 승인</button><button class="btn btn-secondary btn-sm">상세 보기</button></div>
+                    </div>
+
+                    <div style="margin-top:24px;">
+                        <div class="section-title">구성원 요약</div>
+                        <div class="chart-grid" style="grid-template-columns: repeat(4,1fr);">
+                            <div class="chart-card" style="text-align:center;"><div class="chart-label">전체 인원</div><div class="chart-value" style="margin-top:8px;">12명</div></div>
+                            <div class="chart-card" style="text-align:center;"><div class="chart-label">정규직</div><div class="chart-value" style="margin-top:8px;">10명</div></div>
+                            <div class="chart-card" style="text-align:center;"><div class="chart-label">계약직</div><div class="chart-value" style="margin-top:8px;">2명</div></div>
+                            <div class="chart-card" style="text-align:center;"><div class="chart-label">신규 입사</div><div class="chart-value" style="margin-top:8px;color:var(--primary);">1명</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ════════ 인사·급여 (운영자) ════════ -->
+                <div class="page" id="page-hr-operator">
+                    <div class="greeting">
+                        <h1>급여 정산</h1>
+                        <p>2026년 3월 · 12명</p>
+                    </div>
+
+                    <div class="section-tabs" style="margin-bottom:20px;">
+                        <div class="section-tab active">월정산</div>
+                        <div class="section-tab">연말정산</div>
+                    </div>
+
+                    <div style="background:var(--bg-surface);border:1px solid var(--border-light);border-radius:var(--radius-md);overflow:hidden;">
+                        <table class="data-table">
+                            <thead>
+                                <tr><th>이름</th><th>직급</th><th>고용형태</th><th style="text-align:right;">기본급</th><th style="text-align:right;">수당</th><th style="text-align:right;">공제</th><th style="text-align:right;">실수령액</th><th>상태</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>박개발</td><td>시니어</td><td>정규직</td><td class="amount">4,500,000</td><td class="amount">350,000</td><td class="amount">-680,000</td><td class="amount" style="font-weight:700;">4,170,000</td><td><span class="status status-done">확정</span></td></tr>
+                                <tr><td>김디자인</td><td>시니어</td><td>정규직</td><td class="amount">4,200,000</td><td class="amount">200,000</td><td class="amount">-620,000</td><td class="amount" style="font-weight:700;">3,780,000</td><td><span class="status status-done">확정</span></td></tr>
+                                <tr><td>이마케팅</td><td>주니어</td><td>정규직</td><td class="amount">3,200,000</td><td class="amount">150,000</td><td class="amount">-470,000</td><td class="amount" style="font-weight:700;">2,880,000</td><td><span class="status status-done">확정</span></td></tr>
+                                <tr><td>최신입</td><td>인턴</td><td>계약직</td><td class="amount">2,400,000</td><td class="amount">0</td><td class="amount">-280,000</td><td class="amount" style="font-weight:700;">2,120,000</td><td><span class="status status-pending">검토중</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ════════ 경영 보고서 ════════ -->
+                <div class="page" id="page-report">
+                    <div class="report-summary">
+                        <div class="report-summary-label">2026년 3월 경영 요약</div>
+                        <div class="report-summary-text">
+                            3월 매출은 <strong>8,420만원</strong>으로 전월 대비 12% 증가했습니다. 인건비 비중이 42%로 상승했으나 순이익률 <strong>26.6%</strong>를 유지 중입니다. 외주용역비가 전월 대비 35% 증가하여 분기 예산의 78%를 소진 — 주의가 필요합니다.
+                        </div>
+                        <div class="report-kpi">
+                            <div class="report-kpi-item"><div class="kpi-label">월 매출</div><div class="kpi-value">8,420만</div><div class="kpi-change kpi-up">▲ 12%</div></div>
+                            <div class="report-kpi-item"><div class="kpi-label">월 지출</div><div class="kpi-value">6,180만</div><div class="kpi-change kpi-down">▲ 8%</div></div>
+                            <div class="report-kpi-item"><div class="kpi-label">순이익</div><div class="kpi-value">2,240만</div><div class="kpi-change kpi-up">▲ 8%</div></div>
+                            <div class="report-kpi-item"><div class="kpi-label">런웨이</div><div class="kpi-value">14개월</div><div class="kpi-change kpi-up">▲ 0.8</div></div>
+                        </div>
+                    </div>
+
+                    <div class="section-tabs" id="reportTabs">
+                        <div class="section-tab active" onclick="switchReportTab('fund')">자금</div>
+                        <div class="section-tab" onclick="switchReportTab('cost')">비용</div>
+                        <div class="section-tab" onclick="switchReportTab('profit')">손익</div>
+                    </div>
+
+                    <div id="report-fund" class="page active">
+                        <div class="chart-grid" style="grid-template-columns: 1fr 1fr;">
+                            <div class="chart-card">
+                                <div class="chart-header"><div><div class="chart-label">자금 현황</div><div style="margin-top:4px;"><span class="chart-value">1억 8,510만</span></div></div></div>
+                                <div class="metric-rows" style="margin-top:14px;">
+                                    <div class="metric-row"><span class="label">가용 자금</span><span class="val">1억 2,340만</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">예정 지출</span><span class="val" style="color:var(--error);">6,170만</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">미수금</span><span class="val" style="color:var(--warning);">4,200만</span></div>
+                                </div>
+                            </div>
+                            <div class="chart-card">
+                                <div class="chart-header"><div><div class="chart-label">매출·매입 추이 (6개월)</div></div></div>
+                                <div class="bar-chart" style="height:80px;">
+                                    <div class="bar" style="height:55%;background:var(--primary-bg);"></div>
+                                    <div class="bar" style="height:62%;background:var(--primary-bg);"></div>
+                                    <div class="bar" style="height:48%;background:var(--primary-bg);"></div>
+                                    <div class="bar" style="height:70%;background:var(--primary-bg);"></div>
+                                    <div class="bar" style="height:78%;background:var(--primary-bg);"></div>
+                                    <div class="bar" style="height:88%;background:var(--primary);"></div>
+                                </div>
+                                <div class="bar-labels"><span>10월</span><span>11월</span><span>12월</span><span>1월</span><span>2월</span><span class="current">3월</span></div>
+                            </div>
+                        </div>
+                        <div class="chart-card" style="margin-top:16px;">
+                            <div class="chart-label" style="margin-bottom:12px;">예상 부가세</div>
+                            <div style="display:flex;gap:40px;">
+                                <div><div style="font-size:13px;color:var(--text-tertiary);">매출 부가세</div><div style="font-size:20px;font-weight:700;margin-top:4px;">842만</div></div>
+                                <div><div style="font-size:13px;color:var(--text-tertiary);">매입 부가세</div><div style="font-size:20px;font-weight:700;margin-top:4px;">618만</div></div>
+                                <div><div style="font-size:13px;color:var(--text-tertiary);">예상 납부액</div><div style="font-size:20px;font-weight:700;margin-top:4px;color:var(--primary);">224만</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="report-cost" class="page">
+                        <div class="chart-grid" style="grid-template-columns: 1fr 1fr;">
+                            <div class="chart-card">
+                                <div class="chart-header"><div><div class="chart-label">비용 구조</div><div style="margin-top:4px;"><span class="chart-value">6,180만</span></div></div></div>
+                                <div class="donut-wrap" style="margin-top:14px;">
+                                    <div class="donut" style="width:100px;height:100px;background:conic-gradient(var(--primary) 0% 42%, var(--tag-tax) 42% 68%, var(--text-tertiary) 68% 85%, var(--border-light) 85% 100%);"><div class="donut-inner" style="width:60px;height:60px;">4항목</div></div>
+                                    <div class="donut-legend">
+                                        <div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--primary)"></span>인건비</span><span class="donut-legend-val">2,590만 (42%)</span></div>
+                                        <div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--tag-tax)"></span>임대·관리비</span><span class="donut-legend-val">1,610만 (26%)</span></div>
+                                        <div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--text-tertiary)"></span>외주·용역비</span><span class="donut-legend-val">1,050만 (17%)</span></div>
+                                        <div class="donut-legend-row"><span class="donut-legend-label"><span class="donut-legend-dot" style="background:var(--border-light)"></span>기타</span><span class="donut-legend-val">930만 (15%)</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-card">
+                                <div class="chart-header"><div><div class="chart-label">인건비 분석</div></div></div>
+                                <div class="metric-rows" style="margin-top:8px;">
+                                    <div class="metric-row"><span class="label">총 인건비</span><span class="val">2,590만</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">정규직 (10명)</span><span class="val">2,280만</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">계약직 (2명)</span><span class="val">310만</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">전월 대비</span><span class="val" style="color:var(--error);">+120만 (+4.9%)</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-card" style="border-color:var(--warning);background:var(--warning-bg);cursor:default;">
+                            <div style="font-size:14px;font-weight:600;color:#92400E;">⚠️ 외주용역비 전월 대비 35% 증가</div>
+                            <div style="font-size:13px;color:#92400E;margin-top:4px;">분기 예산 78% 소진. 잔여 예산 230만원.</div>
+                        </div>
+                    </div>
+
+                    <div id="report-profit" class="page">
+                        <div class="chart-grid" style="grid-template-columns: 1fr 1fr;">
+                            <div class="chart-card">
+                                <div class="chart-header"><div><div class="chart-label">손익 현황</div><div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;"><span class="chart-value">2,240만</span><span class="chart-change up">+8%</span></div></div></div>
+                                <div class="metric-rows" style="margin-top:14px;">
+                                    <div class="metric-row"><span class="label">순이익률</span><span class="val">26.6%</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">매출 대비 지출</span><span class="val">73.4%</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">전월 순이익</span><span class="val">2,074만</span></div>
+                                </div>
+                            </div>
+                            <div class="chart-card">
+                                <div class="chart-header"><div><div class="chart-label">카드매출 분석</div></div></div>
+                                <div class="metric-rows" style="margin-top:8px;">
+                                    <div class="metric-row"><span class="label">카드매출 합계</span><span class="val">3,120만</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">매출 비중</span><span class="val">37%</span></div>
+                                    <div class="metric-divider"></div>
+                                    <div class="metric-row"><span class="label">수수료</span><span class="val" style="color:var(--error);">-48만</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="link-bar" style="margin-top:24px;">
+                        <div class="link-bar-text">확정 문서가 필요하세요?</div>
+                        <div class="link-bar-link" onclick="navigateTo('vault')">🔒 보관함 바로가기 →</div>
+                    </div>
+                </div>
+
+                <!-- ════════ 보관함 ════════ -->
+                <div class="page" id="page-vault">
+                    <div class="greeting">
+                        <h1>보관함</h1>
+                        <p>확정 문서 조회 · 다운로드 · 전송</p>
+                    </div>
+
+                    <div class="section-tabs" id="vaultTabs">
+                        <div class="section-tab active" onclick="switchVaultTab('ledger')">경영 장부</div>
+                        <div class="section-tab" onclick="switchVaultTab('tax')">세무 신고</div>
+                        <div class="section-tab" onclick="switchVaultTab('payroll')">급여 대장</div>
+                        <div class="section-tab" onclick="switchVaultTab('forms')">서식·증명서</div>
+                    </div>
+
+                    <div id="vault-ledger" class="page active">
+                        <div class="doc-grid">
+                            <div class="doc-card"><div class="doc-card-icon">📄</div><div class="doc-card-title">손익계산서</div><div class="doc-card-desc">2026년 1~3월 · 최종 확정본</div><div class="doc-card-actions"><span class="doc-action">다운로드</span><span class="doc-action">인쇄</span></div></div>
+                            <div class="doc-card"><div class="doc-card-icon">📄</div><div class="doc-card-title">재무상태표</div><div class="doc-card-desc">2026년 3월말 기준</div><div class="doc-card-actions"><span class="doc-action">다운로드</span><span class="doc-action">인쇄</span></div></div>
+                            <div class="doc-card"><div class="doc-card-icon">📄</div><div class="doc-card-title">자금흐름표</div><div class="doc-card-desc">2026년 1~3월</div><div class="doc-card-actions"><span class="doc-action">다운로드</span><span class="doc-action">인쇄</span></div></div>
+                        </div>
+                    </div>
+                    <div id="vault-tax" class="page">
+                        <div class="doc-grid">
+                            <div class="doc-card"><div class="doc-card-icon">📋</div><div class="doc-card-title">원천세 신고서</div><div class="doc-card-desc">2026년 2월분 · 3/10 신고 완료</div><div class="doc-card-actions"><span class="doc-action">다운로드</span><span class="doc-action">전송</span></div></div>
+                            <div class="doc-card"><div class="doc-card-icon">📋</div><div class="doc-card-title">부가세 신고서</div><div class="doc-card-desc">2025년 2기 확정 · 1/25 신고 완료</div><div class="doc-card-actions"><span class="doc-action">다운로드</span><span class="doc-action">전송</span></div></div>
+                            <div class="doc-card"><div class="doc-card-icon">📋</div><div class="doc-card-title">종합소득세</div><div class="doc-card-desc">2025년 귀속 · 5/31 기한</div><div class="doc-card-actions"><span class="doc-action">다운로드</span></div></div>
+                        </div>
+                    </div>
+                    <div id="vault-payroll" class="page">
+                        <div class="doc-grid">
+                            <div class="doc-card"><div class="doc-card-icon">💰</div><div class="doc-card-title">3월 급여 명세서</div><div class="doc-card-desc">12명 · 집행 대기</div><div class="doc-card-actions"><span class="doc-action">다운로드</span></div></div>
+                            <div class="doc-card"><div class="doc-card-icon">💰</div><div class="doc-card-title">2월 급여 명세서</div><div class="doc-card-desc">12명 · 집행 완료</div><div class="doc-card-actions"><span class="doc-action">다운로드</span></div></div>
+                            <div class="doc-card"><div class="doc-card-icon">💰</div><div class="doc-card-title">연말정산 원천징수영수증</div><div class="doc-card-desc">2025년 귀속 · 11명</div><div class="doc-card-actions"><span class="doc-action">다운로드</span><span class="doc-action">전송</span></div></div>
+                        </div>
+                    </div>
+                    <div id="vault-forms" class="page">
+                        <div class="doc-grid">
+                            <div class="doc-card"><div class="doc-card-icon">📝</div><div class="doc-card-title">서식 모음</div><div class="doc-card-desc">근로계약서, 퇴직금 정산서 등 12종</div><div class="doc-card-actions"><span class="doc-action">보기</span></div></div>
+                            <div class="doc-card"><div class="doc-card-icon">📝</div><div class="doc-card-title">증명서 발급</div><div class="doc-card-desc">재직증명서, 경력증명서, 원천징수영수증</div><div class="doc-card-actions"><span class="doc-action">발급하기</span></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ════════ 설정 ════════ -->
+                <div class="page" id="page-settings">
+                    <div class="greeting">
+                        <h1>설정</h1>
+                        <p>회사 정보, 서비스, 연동, 급여 설정을 관리합니다.</p>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+                        <div class="settings-group-card">
+                            <div class="settings-group-title">기본 정보</div>
+                            <div class="settings-group-item">
+                                <div class="settings-item-label">회사 관리</div>
+                                <div class="settings-item-desc">회사명, 사업자등록번호, 주소 등 기본 정보</div>
+                            </div>
+                            <div class="settings-group-item">
+                                <div class="settings-item-label">사용자 관리</div>
+                                <div class="settings-item-desc">멤버 초대, 권한 설정, 역할 관리</div>
+                            </div>
+                        </div>
+                        <div class="settings-group-card">
+                            <div class="settings-group-title">서비스</div>
+                            <div class="settings-group-item">
+                                <div class="settings-item-label">서비스 및 결제</div>
+                                <div class="settings-item-desc">구독 플랜, 결제 수단, 이용 내역</div>
+                            </div>
+                            <div class="settings-group-item">
+                                <div class="settings-item-label">계약서 및 동의서</div>
+                                <div class="settings-item-desc">서비스 이용 계약, 개인정보 동의</div>
+                            </div>
+                        </div>
+                        <div class="settings-group-card">
+                            <div class="settings-group-title">연동</div>
+                            <div class="settings-group-item">
+                                <div class="settings-item-label">세무신고 기관 연동</div>
+                                <div class="settings-item-desc">홈택스, 국세청 연동 상태</div>
+                            </div>
+                            <div class="settings-group-item">
+                                <div class="settings-item-label">내역 수집 기관 연동</div>
+                                <div class="settings-item-desc">은행, 카드사, 보험 연동 관리</div>
+                            </div>
+                            <div class="settings-group-item">
+                                <div class="settings-item-label">공동 인증서 관리</div>
+                                <div class="settings-item-desc">인증서 등록, 갱신, 삭제</div>
+                            </div>
+                        </div>
+                        <div class="settings-group-card">
+                            <div class="settings-group-title">급여</div>
+                            <div class="settings-group-item">
+                                <div class="settings-item-label">급여 설정</div>
+                                <div class="settings-item-desc">급여일, 지급 계좌, 4대보험 설정</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Aux Panel -->
+            <aside class="aux" id="auxPanel">
+                <div class="aux-inner">
+                    <div class="aux-header">
+                        <span class="aux-title" id="auxTitle">상세</span>
+                        <button class="aux-close" onclick="closeAux()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+                    </div>
+                    <div id="auxContent"></div>
+                    <div class="aux-footer" id="auxFooter"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── State ──
+let currentTab = 'home';
+let currentRole = 'ceo';
+let lnbPinned = false;
+let lnbOverlayOpen = false;
+let hoverTimer = null;
+
+// ── LNB Menu Data (IA v0.5) ──
+const lnbMenu = {
+    service: [
+        { id: 'home', icon: '🏠', label: '홈', type: 'page' },
+        { id: 'accounting', icon: '📋', label: '경리', type: 'section', children: [
+            { id: 'acc-sales', label: '매출 증빙 관리' },
+            { id: 'acc-invoice', label: '세금계산서 발급' },
+            { id: 'acc-purchase', label: '매입 증빙 관리' },
+            { id: 'acc-tax', label: '세금 납부' },
+            { id: 'acc-accounts', label: '계좌 목록' },
+            { id: 'acc-transactions', label: '입출금 내역' },
+            { id: 'acc-deposit', label: '입금 관리' },
+            { id: 'acc-withdrawal', label: '출금 관리' },
+            { id: 'acc-vendors', label: '거래처 관리' },
+        ]},
+        { id: 'hr', icon: '👥', label: '인사·급여', type: 'section', children: [
+            { id: 'hr-payroll', label: '급여 정산' },
+            { id: 'hr-members', label: '구성원 정보' },
+        ]},
+        { id: 'report', icon: '📊', label: '경영 보고서', type: 'page' },
+    ],
+    utility: [
+        { id: 'vault', icon: '🔒', label: '보관함', type: 'page' },
+        { id: 'settings', icon: '⚙️', label: '설정', type: 'page' },
+    ]
+};
+
+const headerTitles = {
+    home: '홈',
+    accounting: '경리',
+    hr: '인사·급여',
+    report: '경영 보고서',
+    vault: '보관함',
+    settings: '설정',
+};
+
+// ── Render LNB ──
+function renderLNB(container) {
+    let html = `<div class="lnb-header">
+        <span class="lnb-logo" onclick="navigateTo('home')">Alfred.</span>
+        <button class="lnb-pin-btn" onclick="togglePin()" title="${lnbPinned ? '고정 해제' : '고정'}">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                ${lnbPinned
+                    ? '<path d="M15 3l-6 6h-3l-2 2 5 5 2-2v-3l6-6"/><path d="M9 15l-3 3"/>'
+                    : '<path d="M9 3l6 6h3l2 2-5 5-2-2v-3l-6-6"/><path d="M15 15l3 3"/>'}
+            </svg>
+        </button>
+    </div>`;
+    html += '<div class="lnb-menu">';
+
+    // Service menus
+    html += '<div class="lnb-section">';
+    lnbMenu.service.forEach(item => {
+        const isActive = item.id === currentTab;
+        if (item.type === 'page') {
+            html += `<div class="lnb-item${isActive ? ' active' : ''}" onclick="navigateTo('${item.id}')">${item.icon} ${item.label}</div>`;
+        } else {
+            html += `<div class="lnb-item section-head">${item.icon} ${item.label}</div>`;
+            if (item.children) {
+                item.children.forEach(child => {
+                    html += `<div class="lnb-item sub" onclick="navigateTo('${item.id}')">${child.label}</div>`;
+                });
+            }
+        }
+    });
+    html += '</div>';
+
+    // Divider
+    html += '<div class="lnb-divider"></div>';
+
+    // Utility menus
+    html += '<div class="lnb-section">';
+    lnbMenu.utility.forEach(item => {
+        const isActive = item.id === currentTab;
+        if (item.type === 'page') {
+            html += `<div class="lnb-item${isActive ? ' active' : ''}" onclick="navigateTo('${item.id}')">${item.icon} ${item.label}</div>`;
+        } else {
+            html += `<div class="lnb-item section-head">${item.icon} ${item.label}</div>`;
+            if (item.children) {
+                let currentGroup = null;
+                item.children.forEach(child => {
+                    if (child.group && child.group !== currentGroup) {
+                        currentGroup = child.group;
+                        html += `<div class="lnb-item sub" style="font-size:11px;color:var(--text-tertiary);font-weight:600;cursor:default;padding-top:10px;">${currentGroup}</div>`;
+                    }
+                    html += `<div class="lnb-item sub" onclick="navigateTo('${item.id}')">${child.label}</div>`;
+                });
+            }
+        }
+    });
+    html += '</div></div>';
+
+    container.innerHTML = html;
+}
+
+// ── Navigation ──
+function navigateTo(tab) {
+    currentTab = tab;
+    document.getElementById('headerTitle').textContent = headerTitles[tab] || tab;
+
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+    // Show appropriate page
+    const rolePages = ['home', 'accounting', 'hr'];
+    if (rolePages.includes(tab)) {
+        const pageId = `page-${tab}-${currentRole}`;
+        const el = document.getElementById(pageId);
+        if (el) el.classList.add('active');
+    } else {
+        const el = document.getElementById(`page-${tab}`);
+        if (el) el.classList.add('active');
+    }
+
+    // Re-render LNB to update active state
+    renderLNB(document.getElementById('lnbContent'));
+    renderLNB(document.getElementById('lnbOverlayContent'));
+
+    // Close overlay if open
+    closeLnbOverlay();
+    closeAux();
+}
+
+// ── Role Toggle ──
+function switchRole(role) {
+    currentRole = role;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.toggle('active', b.dataset.role === role));
+    navigateTo(currentTab);
+}
+
+// ── LNB Pin/Overlay ──
+function togglePin() {
+    lnbPinned = !lnbPinned;
+    document.getElementById('lnb').classList.toggle('pinned', lnbPinned);
+    if (lnbPinned) closeLnbOverlay();
+    renderLNB(document.getElementById('lnbContent'));
+    renderLNB(document.getElementById('lnbOverlayContent'));
+}
+
+function openLnbOverlay() {
+    if (lnbPinned) return;
+    lnbOverlayOpen = true;
+    document.getElementById('lnbOverlay').classList.add('open');
+    document.getElementById('lnbBackdrop').classList.add('show');
+}
+
+function closeLnbOverlay() {
+    lnbOverlayOpen = false;
+    document.getElementById('lnbOverlay').classList.remove('open');
+    document.getElementById('lnbBackdrop').classList.remove('show');
+}
+
+// Hamburger
+const hamburger = document.getElementById('hamburgerBtn');
+hamburger.addEventListener('click', () => {
+    if (lnbPinned) {
+        togglePin();
+    } else {
+        togglePin();
+    }
+});
+hamburger.addEventListener('mouseenter', () => {
+    if (!lnbPinned) {
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(openLnbOverlay, 150);
+    }
+});
+hamburger.addEventListener('mouseleave', () => {
+    clearTimeout(hoverTimer);
+});
+
+// Overlay hover
+const overlay = document.getElementById('lnbOverlay');
+overlay.addEventListener('mouseenter', () => { clearTimeout(hoverTimer); });
+overlay.addEventListener('mouseleave', () => {
+    hoverTimer = setTimeout(closeLnbOverlay, 200);
+});
+
+document.getElementById('lnbBackdrop').addEventListener('click', closeLnbOverlay);
+
+// ── Aux Panel ──
+function openAuxDetail(id) {
+    const titles = { expense: '외주 개발비 1,200만', salary: '3월 급여 집행', receivable: '미수금 2,800만' };
+    document.getElementById('auxPanel').classList.add('open');
+    document.getElementById('auxTitle').textContent = titles[id] || '상세';
+
+    const c = document.getElementById('auxContent');
+    const f = document.getElementById('auxFooter');
+
+    if (id === 'expense') {
+        c.innerHTML = `<div class="detail-field"><div class="detail-label">거래처</div><div class="detail-value">(주)테크파트너스</div></div><div class="detail-field"><div class="detail-label">금액</div><div class="detail-value large">12,000,000원</div></div><div class="detail-divider"></div><div class="detail-field"><div class="detail-label">AI 추천</div><div class="detail-value"><span class="tag tag-accounting">외주용역비</span> 92%</div></div><div class="detail-field"><div class="detail-label">코멘트</div><div class="detail-value" style="background:var(--bg-body);padding:10px;border-radius:6px;font-size:14px;">계약서 1,000만 + 추가 개발분 200만.</div></div>`;
+        f.innerHTML = `<button class="btn btn-primary" style="flex:1">확정</button><button class="btn btn-secondary">변경</button>`;
+    } else if (id === 'salary') {
+        c.innerHTML = `<div class="detail-field"><div class="detail-label">총 지급액</div><div class="detail-value large">43,200,000원</div></div><div class="detail-field"><div class="detail-label">대상</div><div class="detail-value">12명 (정규직 10 / 계약직 2)</div></div><div class="detail-divider"></div><div class="detail-field"><div class="detail-label">변동</div><div class="detail-value" style="font-size:14px;">· 신규 입사자 1명 (최신입)<br>· 연장근무 수당 증가</div></div>`;
+        f.innerHTML = `<button class="btn btn-primary" style="flex:1">급여 집행 승인</button><button class="btn btn-secondary">수정 요청</button>`;
+    } else if (id === 'receivable') {
+        c.innerHTML = `<div class="detail-field"><div class="detail-label">거래처</div><div class="detail-value">(주)넥스트커머스</div></div><div class="detail-field"><div class="detail-label">미수금</div><div class="detail-value large" style="color:var(--warning);">28,000,000원</div></div><div class="detail-field"><div class="detail-label">약정일</div><div class="detail-value" style="color:var(--error);font-weight:600;">2026-03-15 (경과)</div></div><div class="detail-divider"></div><div class="detail-field"><div class="detail-label">거래 이력</div><div class="detail-value" style="font-size:14px;">· 2026-01: 2,200만 → 정상 ✓<br>· 2025-12: 1,800만 → 정상 ✓<br>· 2025-11: 2,500만 → 3일 지연</div></div>`;
+        f.innerHTML = `<button class="btn btn-primary" style="flex:1">입금 독촉</button><button class="btn btn-secondary">메모</button>`;
+    }
+}
+
+function closeAux() {
+    document.getElementById('auxPanel').classList.remove('open');
+}
+
+// ── Report Section Tabs ──
+function switchReportTab(tab) {
+    document.querySelectorAll('#reportTabs .section-tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    ['fund','cost','profit'].forEach(t => {
+        const el = document.getElementById(`report-${t}`);
+        if (el) el.classList.toggle('active', t === tab);
+    });
+}
+
+// ── Vault Tabs ──
+function switchVaultTab(tab) {
+    document.querySelectorAll('#vaultTabs .section-tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    ['ledger','tax','payroll','forms'].forEach(t => {
+        const el = document.getElementById(`vault-${t}`);
+        if (el) el.classList.toggle('active', t === tab);
+    });
+}
+
+// ── Init ──
+renderLNB(document.getElementById('lnbContent'));
+renderLNB(document.getElementById('lnbOverlayContent'));
+</script>
+</body>
+</html>
